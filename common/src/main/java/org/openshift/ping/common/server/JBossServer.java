@@ -30,8 +30,6 @@ import org.jgroups.JChannel;
  * @author <a href="mailto:ales.justin@jboss.org">Ales Justin</a>
  */
 public class JBossServer extends AbstractServer {
-    private static final byte[] RESPONSE_BYTES = "OK".getBytes();
-
     private HttpServer server;
 
     public JBossServer(int port) {
@@ -79,20 +77,15 @@ public class JBossServer extends AbstractServer {
         }
 
         public void handle(HttpExchange exchange) throws IOException {
+            exchange.sendResponseHeaders(200, 0);
             try {
-                try {
-                    String clusterName = exchange.getRequestHeaders().getFirst(CLUSTER_NAME);
-                    JChannel channel = server.getChannel(clusterName);
-                    try (InputStream stream = exchange.getRequestBody()) {
-                        handlePingRequest(channel, stream);
-                    }
-                    exchange.sendResponseHeaders(200, RESPONSE_BYTES.length);
-                    exchange.getResponseBody().write(RESPONSE_BYTES);
-                } catch (Exception e) {
-                    throw new IOException(e);
+                String clusterName = exchange.getRequestHeaders().getFirst(CLUSTER_NAME);
+                JChannel channel = server.getChannel(clusterName);
+                try (InputStream stream = exchange.getRequestBody()) {
+                    handlePingRequest(channel, stream);
                 }
-            } finally {
-                exchange.close();
+            } catch (Exception e) {
+                throw new IOException(e);
             }
         }
     }
