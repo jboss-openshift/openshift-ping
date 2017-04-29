@@ -21,6 +21,7 @@ import java.io.DataOutputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
+import java.net.Proxy;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Collection;
@@ -81,7 +82,7 @@ public abstract class ServerTestBase extends TestBase {
         Message msg = new Message(null).setFlag(Message.Flag.DONT_BUNDLE)
                 .putHeader(pinger.getId(), hdr).setBuffer(streamableToBuffer(data));
         URL url = new URL("http://localhost:8888");
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection(Proxy.NO_PROXY);
         conn.addRequestProperty(Server.CLUSTER_NAME, TestBase.CLUSTER_NAME);
         conn.setDoOutput(true);
         conn.setRequestMethod("POST");
