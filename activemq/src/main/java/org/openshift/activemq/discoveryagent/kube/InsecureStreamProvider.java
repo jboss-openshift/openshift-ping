@@ -19,6 +19,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.net.Proxy;
 import java.net.URL;
 import java.net.URLConnection;
 import java.security.cert.CertificateException;
@@ -79,7 +80,7 @@ public class InsecureStreamProvider {
                     "%s opening connection: url [%s], headers [%s], connectTimeout [%s], readTimeout [%s]", getClass()
                             .getSimpleName(), url, headers, connectTimeout, readTimeout));
         }
-        URLConnection connection = new URL(url).openConnection();
+        URLConnection connection = new URL(url).openConnection(Proxy.NO_PROXY);
         if (headers != null) {
             for (Map.Entry<String, String> entry : headers.entrySet()) {
                 connection.addRequestProperty(entry.getKey(), entry.getValue());

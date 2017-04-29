@@ -25,6 +25,7 @@ import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.net.URL;
 import java.util.Collections;
 import java.util.List;
@@ -274,7 +275,7 @@ public abstract class OpenshiftPing extends PING {
             }
             HttpURLConnection connection = null;
             try {
-                connection = (HttpURLConnection) new URL(url).openConnection();
+                connection = (HttpURLConnection) new URL(url).openConnection(Proxy.NO_PROXY);
                 connection.addRequestProperty(Server.CLUSTER_NAME, clusterName);
                 if (_connectTimeout < 0 || _readTimeout < 0) {
                     throw new IllegalArgumentException(String.format(
