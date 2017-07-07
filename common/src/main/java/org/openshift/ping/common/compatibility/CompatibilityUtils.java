@@ -16,6 +16,7 @@ public class CompatibilityUtils {
     * @return <code>true</code> when JGroups 4 is on the classpath. <code>false</code> otherwise.
     */
    public static boolean isJGroups4() {
-      return Version.major == 4;
+      final short[] decodedVersion = Version.decode(Version.version);
+      return decodedVersion[0] == 4;
    }
 }
