@@ -95,6 +95,8 @@ public class KubePing extends OpenshiftPing {
 
     private Client _client;
 
+    private boolean _hasLoggedPermissionError = false;
+
     public KubePing() {
         super("OPENSHIFT_KUBE_PING_");
     }
@@ -194,8 +196,10 @@ public class KubePing extends OpenshiftPing {
         List<Pod> pods;
         try {
             pods = client.getPods(_namespace, _labels);
+            _hasLoggedPermissionError = false;
         } catch (Exception e) {
-            if (log.isWarnEnabled()) {
+            if (!_hasLoggedPermissionError) {
+                _hasLoggedPermissionError = true;
                 log.warn(String.format("Problem getting Pod json from Kubernetes %s for cluster [%s], namespace [%s], labels [%s]; encountered [%s: %s]",
                         client.info(), clusterName, _namespace, _labels, e.getClass().getName(), e.getMessage()));
             }
