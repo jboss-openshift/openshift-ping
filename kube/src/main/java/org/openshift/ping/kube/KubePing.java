@@ -24,12 +24,16 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.jgroups.Event;
+import org.jgroups.PhysicalAddress;
 import org.jgroups.annotations.MBean;
 import org.jgroups.annotations.Property;
 import org.jgroups.conf.ClassConfigurator;
+import org.jgroups.stack.IpAddress;
 import org.openshift.ping.common.OpenshiftPing;
 import org.openshift.ping.common.stream.CertificateStreamProvider;
 import org.openshift.ping.common.stream.StreamProvider;
@@ -93,6 +97,9 @@ public class KubePing extends OpenshiftPing {
     @Property
     private String saTokenFile = "/var/run/secrets/kubernetes.io/serviceaccount/token";
 
+    @Property
+    private boolean split_clusters_during_rolling_update;
+
     private Client _client;
 
     public KubePing() {
@@ -113,6 +120,14 @@ public class KubePing extends OpenshiftPing {
 
     public void setNamespace(String namespace) {
         this.namespace = namespace;
+    }
+
+    public String getNamespace() {
+        return namespace;
+    }
+
+    public String getLabels() {
+        return labels;
     }
 
     @Override
@@ -201,6 +216,9 @@ public class KubePing extends OpenshiftPing {
             }
             pods = Collections.<Pod>emptyList();
         }
+
+        filterPodsForSplitClusterDuringRollingUpdate(pods);
+
         List<InetSocketAddress> retval = new ArrayList<>();
         for (Pod pod : pods) {
             List<Container> containers = pod.getContainers();
@@ -213,7 +231,42 @@ public class KubePing extends OpenshiftPing {
                 }
             }
         }
+
         return retval;
+    }
+
+    private void filterPodsForSplitClusterDuringRollingUpdate(List<Pod> pods) {
+        if (split_clusters_during_rolling_update) {
+            if (local_addr != null) {
+                PhysicalAddress physical_addr = (PhysicalAddress)down(new Event(Event.GET_PHYSICAL_ADDRESS, local_addr));
+                if (physical_addr != null) {
+                    String senderIp = ((IpAddress)physical_addr).getIpAddress().getHostAddress();
+                    String senderParentDeployment = findParentDeploymentForPhysicalAddress(pods, senderIp);
+                    if (senderParentDeployment != null) {
+                        for (Iterator<Pod> itemsToBeFiltered = pods.iterator(); itemsToBeFiltered.hasNext();) {
+                            String parentDeployment = itemsToBeFiltered.next().getParentDeployment();
+                            if (!senderParentDeployment.equals(parentDeployment)) {
+                                itemsToBeFiltered.remove();
+                                log.trace(String.format("removing pod %s from cluster members list since its parent domain is different than senders (%s).", itemsToBeFiltered.toString(), parentDeployment));
+                            }
+                        }
+                    } else {
+                        log.warn("split_clusters_during_rolling_update is set to 'true' but can't obtain local node parent deployment. All nodes will be placed in the same cluster.");
+                    }
+                } else {
+                    log.warn("split_clusters_during_rolling_update is set to 'true' but can't obtain local node IP address. All nodes will be placed in the same cluster.");
+                }
+            }
+        }
+    }
+
+    private String findParentDeploymentForPhysicalAddress(List<Pod> pods, String ipAddress) {
+        for (Pod p : pods) {
+            if (p.getPodIP().equals(ipAddress)) {
+                return p.getParentDeployment();
+            }
+        }
+        return null;
     }
 
 }

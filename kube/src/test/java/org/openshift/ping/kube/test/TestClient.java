@@ -29,19 +29,22 @@ import org.openshift.ping.kube.Client;
  * @author <a href="mailto:ales.justin@jboss.org">Ales Justin</a>
  */
 public class TestClient extends Client {
-    private static final Map<String, String> OPS = new HashMap<>();
 
-    static {
-        try {
-            String json = readFileToString(new File(TestClient.class.getResource("/pods.json").toURI()));
-            OPS.put("pods", json);
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-    }
+    private final Map<String, String> OPS = new HashMap<>();
 
     public TestClient() {
+        this("/pods.json");
+    }
+
+    public TestClient(String resourceFile) {
         super(null, null, 0, 0, 0, 0, null);
+        String json;
+        try {
+            json = readFileToString(new File(TestClient.class.getResource(resourceFile).toURI()));
+        } catch (Exception e) {
+            throw new AssertionError(e);
+        }
+        OPS.put("pods", json);
     }
 
     @Override

@@ -25,10 +25,16 @@ import java.util.List;
  */
 public final class Pod {
     private final String podIP;
+    private final String parentDeployment;
     private final List<Container> containers = new ArrayList<Container>();
 
-    public Pod(String podIP) {
+    public Pod(String podIP, String parentDeployment) {
         this.podIP = podIP;
+        this.parentDeployment = parentDeployment;
+    }
+
+    public String getParentDeployment() {
+        return parentDeployment;
     }
 
     public String getPodIP() {

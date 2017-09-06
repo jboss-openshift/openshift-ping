@@ -95,6 +95,7 @@ public class Client {
             //String podName = metadataNode.get("name").asString(); // eap-app-1-43wra
             //String podNamespace = metadataNode.get("namespace").asString(); // dward
             ModelNode specNode = itemNode.get("spec");
+            ModelNode metadataNode = itemNode.get("metadata");
             //String serviceAccount = specNode.get("serviceAccount").asString(); // default
             //String host = specNode.get("host").asString(); // ce-openshift-rhel-minion-1.lab.eng.brq.redhat.com
             ModelNode statusNode = itemNode.get("status");
@@ -128,7 +129,20 @@ public class Client {
                 continue;
             }
             String podIP = podIPNode.asString(); // 10.1.0.169
-            Pod pod = new Pod(podIP);
+
+            String parentDeployment = null;
+            if (metadataNode.isDefined()) {
+                ModelNode labelsNode = metadataNode.get("labels");
+                if (labelsNode.isDefined()) {
+                    ModelNode deploymentNode = labelsNode.get("deployment");
+                    if (deploymentNode.isDefined()) {
+                        parentDeployment = deploymentNode.asString();
+                    }
+                }
+            }
+
+            Pod pod = new Pod(podIP, parentDeployment);
+
             ModelNode containersNode = specNode.get("containers");
             if (!containersNode.isDefined()) {
                 continue;
