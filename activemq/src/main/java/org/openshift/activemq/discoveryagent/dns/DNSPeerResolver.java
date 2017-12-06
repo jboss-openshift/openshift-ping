@@ -31,7 +31,6 @@ public class DNSPeerResolver implements PeerAddressResolver {
 
     private final String serviceName;
     private final DNSUtil dns;
-    private String endpointName;
     private int servicePort = -1;
 
     /**
@@ -63,10 +62,10 @@ public class DNSPeerResolver implements PeerAddressResolver {
     @Override
     public String[] getPeerIPs() {
         init();
-        if (endpointName == null) {
+        if (serviceName == null) {
             return new String[0];
         }
-        return dns.lookupIPs(endpointName);
+        return dns.lookupIPs(serviceName);
     }
 
     @Override
@@ -76,19 +75,9 @@ public class DNSPeerResolver implements PeerAddressResolver {
     }
 
     private synchronized void init() {
-        if (endpointName != null) {
-            return;
-        }
-        endpointName = dns.getEndpointNameForService(serviceName);
-        LOGGER.info("Calculated endpoint name {} for service {}", endpointName, serviceName);
-        if (endpointName == null) {
-            // no endpoints
-            LOGGER.warn("Could not get endpoint for service: {}.", serviceName);
-            return;
-        }
         if (servicePort < 1) {
             try {
-                servicePort = Integer.valueOf(dns.getPortForService(endpointName));
+                servicePort = Integer.valueOf(dns.getPortForService(serviceName));
             } catch (Exception e) {
                 LOGGER.warn("Error retrieving service port.  61616 will be used.", e);
                 // default to 61616

@@ -45,7 +45,10 @@ public class GetServicePort implements Callable<Integer> {
         // retries handled by DnsPing
         //env.put("com.sun.jndi.dns.timeout.retries", "4");
         DirContext ctx = new InitialDirContext(env);
-        Attributes attrs = ctx.getAttributes(serviceName, new String[]{"SRV"});
+        Attributes attrs = ctx.getAttributes("_tcp." + serviceName, new String[]{"SRV"});
+        if (attrs == null) {
+            return dnsRecords;
+        }
         NamingEnumeration<?> servers = attrs.get("SRV").getAll();
         while (servers.hasMore()) {
             DnsRecord record = DnsRecord.fromString((String)servers.next());
