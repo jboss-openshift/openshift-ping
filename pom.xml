@@ -32,7 +32,7 @@
 
     <groupId>org.openshift.ping</groupId>
     <artifactId>openshift-ping-parent</artifactId>
-    <version>1.1.5.Final</version>
+    <version>1.1.6.Final</version>
     <packaging>pom</packaging>
 
     <name>OpenShift PING - Parent</name>
@@ -64,7 +64,6 @@
         <module>dns</module>
         <module>kube</module>
         <module>activemq</module>
-        <module>dist</module>
         <module>examples/apps</module>
     </modules>
 
@@ -134,6 +133,13 @@
     </dependencyManagement>
 
     <profiles>
+        <profile>
+            <!-- Create eap/wildfly distributions -->
+            <id>dist</id>
+            <modules>
+                <module>dist</module>
+            </modules>
+        </profile>
         <profile>
             <id>wildfly</id>
             <activation>

@@ -24,6 +24,7 @@ import java.util.List;
 import javax.naming.Context;
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
+import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
 import javax.naming.directory.InitialDirContext;
 
@@ -37,73 +38,10 @@ public class DNSUtil {
 
     private final static Logger LOGGER = LoggerFactory.getLogger(DNSUtil.class);
 
-    private static final String KUBERNETES_SERVICE_NAME = "kubernetes.default.svc";
-
-    private String domain;
-    private String serviceDomain;
-    private String endpointsDomain;
-
     /**
      * Create a new DNSUtil using default DNS server (i.e. dns:)
-     * 
-     * @throws NamingException if something goes awry
      */
     public DNSUtil() {
-        initDomain();
-    }
-
-    /**
-     * Returns a list of IPs corresponding to the endpoints registered for the
-     * specified service.
-     * 
-     * @param serviceName the name of the service. This may be a fully qualified
-     *            name or a subdomain name that can be resolved using the search
-     *            definition on the host machine.
-     * @return a list of IPs
-     */
-    public String[] getEndpointsForService(String serviceName) {
-        final String endpointName = getEndpointNameForService(serviceName);
-        return lookupIPs(endpointName);
-    }
-
-    /**
-     * Returns the endpoint name for the service (i.e. .endpoints.doman vs.
-     * .svc.domain).
-     * 
-     * @param serviceName the service name
-     * @return the fully qualified endpoint name
-     */
-    public String getEndpointNameForService(String serviceName) {
-        final String fqdn = getFQDN(serviceName);
-        if (fqdn == null || fqdn.length() == 0 || fqdn.length() < serviceDomain.length()) {
-            return null;
-        }
-        return fqdn.substring(0, fqdn.length() - serviceDomain.length()) + endpointsDomain;
-    }
-
-    /**
-     * Returns the fully qualified domain name for the given name. If the name
-     * is already a FQDN, the returned value should match the input.
-     * 
-     * @param name the name to fully qualify.
-     * @return the fully qualified domain name; null if the name could not be
-     *         resolved.
-     */
-    public String getFQDN(String name) {
-        if (name == null) {
-            return null;
-        }
-        if (domain != null && name.endsWith(domain)) {
-            return name;
-        }
-        try {
-            for (InetAddress inetAddress : InetAddress.getAllByName(name)) {
-                return InetAddress.getByAddress(inetAddress.getAddress()).getHostName();
-            }
-        } catch (UnknownHostException e) {
-            LOGGER.warn("Could not resolve host: {}", name, e);
-        }
-        return null;
     }
 
     /**
@@ -148,13 +86,17 @@ public class DNSUtil {
             env.put("com.sun.jndi.dns.timeout.initial", "2000");
             env.put("com.sun.jndi.dns.timeout.retries", "4");
             ctx = new InitialDirContext(env);
-            for (NamingEnumeration<?> srvs = ctx.getAttributes(name, new String[] {"SRV" }).getAll(); srvs.hasMore();) {
+            Attributes attrs = ctx.getAttributes("_tcp." + name, new String[] {"SRV" });
+            if (attrs == null) {
+                return null;
+            }
+            for (NamingEnumeration<?> srvs = attrs.getAll(); srvs.hasMore();) {
                 String srv = srvs.next().toString();
                 String[] fields = srv.split(" ");
                 return fields[2];
             }
         } catch (NamingException e) {
-            LOGGER.error("Error retrieving port for service: " + name, e);
+            LOGGER.error("Error retrieving port for service: " + name, e.getMessage());
         } finally {
             if (ctx != null) {
                 try {
@@ -165,18 +107,6 @@ public class DNSUtil {
             }
         }
         return null;
-    }
-
-    private void initDomain() {
-        String fqdn = getFQDN(KUBERNETES_SERVICE_NAME);
-        if (fqdn != null && fqdn.startsWith(KUBERNETES_SERVICE_NAME)) {
-            domain = fqdn.substring(KUBERNETES_SERVICE_NAME.length() + 1);
-        } else {
-            LOGGER.warn("Could not resolve kubernetes service to calculate default domain.  Using cluster.local as domain");
-            domain = "cluster.local";
-        }
-        serviceDomain = ".svc." + domain;
-        endpointsDomain = ".endpoints." + domain;
     }
 
 }
