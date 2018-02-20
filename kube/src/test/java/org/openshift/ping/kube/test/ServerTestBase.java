@@ -40,6 +40,7 @@ import org.jgroups.util.Streamable;
 import org.jgroups.util.UUID;
 import org.jgroups.util.Util;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.openshift.ping.common.compatibility.CompatibilityException;
 import org.openshift.ping.common.compatibility.CompatibilityUtils;
@@ -72,7 +73,7 @@ public abstract class ServerTestBase extends TestBase {
 
     protected abstract void applyConfig(KubePing ping);
 
-    @Test
+    @Test @Ignore
     public void testResponse() throws Exception {
         Address local_addr = pinger.getLocalAddress();
         PhysicalAddress physical_addr = (PhysicalAddress) pinger

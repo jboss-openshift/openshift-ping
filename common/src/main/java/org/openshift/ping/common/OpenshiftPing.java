@@ -19,28 +19,22 @@ package org.openshift.ping.common;
 import static org.openshift.ping.common.Utils.getSystemEnvInt;
 import static org.openshift.ping.common.Utils.trimToNull;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.InputStream;
 import java.lang.reflect.Method;
-import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
-import java.net.Proxy;
-import java.net.URL;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
-import org.jgroups.Address;
 import org.jgroups.Event;
 import org.jgroups.Message;
+import org.jgroups.PhysicalAddress;
 import org.jgroups.annotations.Property;
 import org.jgroups.protocols.PING;
+import org.jgroups.stack.IpAddress;
+import org.jgroups.stack.Protocol;
 import org.openshift.ping.common.compatibility.CompatibilityException;
 import org.openshift.ping.common.compatibility.CompatibilityUtils;
-import org.openshift.ping.common.server.Server;
 import org.openshift.ping.common.server.ServerFactory;
-import org.openshift.ping.common.server.Servers;
 
 public abstract class OpenshiftPing extends PING {
 
@@ -64,30 +58,19 @@ public abstract class OpenshiftPing extends PING {
     private long operationSleep = 1000;
     private long _operationSleep;
 
-    private ServerFactory _serverFactory;
-    private Server _server;
-    private String _serverName;
-
-    private static Method sendMethod; //handled via reflection due to JGroups 3/4 incompatibility
-    private static Method setSrcMethod;
+    private static Method sendDownMethod; //handled via reflection due to JGroups 3/4 incompatibility
 
     public OpenshiftPing(String systemEnvPrefix) {
         super();
         _systemEnvPrefix = trimToNull(systemEnvPrefix);
         try {
             if(CompatibilityUtils.isJGroups4()) {
-                sendMethod = this.getClass().getMethod("up", Message.class);
+                sendDownMethod = Protocol.class.getMethod("down", Message.class);
             } else {
-                sendMethod = this.getClass().getMethod("up", Event.class);
+                sendDownMethod = Protocol.class.getMethod("down", Event.class);
             }
         } catch (Exception e) {
             throw new CompatibilityException("Could not find suitable 'up' method.", e);
-        }
-        try {
-            //the return parameter changed in JGroups 3/4 :D
-            setSrcMethod = Message.class.getMethod("setSrc", Address.class);
-        } catch (Exception e) {
-            throw new CompatibilityException("Could not find suitable 'setSrc' method.", e);
         }
     }
 
@@ -124,7 +107,6 @@ public abstract class OpenshiftPing extends PING {
     protected abstract int getServerPort();
 
     public final void setServerFactory(ServerFactory serverFactory) {
-        _serverFactory = serverFactory;
     }
 
     @Override
@@ -147,41 +129,12 @@ public abstract class OpenshiftPing extends PING {
 
     @Override
     public void start() throws Exception {
-        if (isClusteringEnabled()) {
-            int serverPort = getServerPort();
-            if (_serverFactory != null) {
-                _server = _serverFactory.getServer(serverPort);
-            } else {
-                _server = Servers.getServer(serverPort);
-            }
-            _serverName = _server.getClass().getSimpleName();
-            if (log.isInfoEnabled()) {
-                log.info(String.format("Starting %s on port %s for channel address: %s", _serverName, serverPort, stack
-                        .getChannel().getAddress()));
-            }
-            boolean started = _server.start(stack.getChannel());
-            if (log.isInfoEnabled()) {
-                log.info(String.format("%s %s.", _serverName, started ? "started" : "reused (pre-existing)"));
-            }
-        }
         super.start();
     }
 
     @Override
     public void stop() {
-        try {
-            if (_server != null) {
-                if (log.isInfoEnabled()) {
-                    log.info(String.format("Stopping server: %s", _serverName));
-                }
-                boolean stopped = _server.stop(stack.getChannel());
-                if (log.isInfoEnabled()) {
-                    log.info(String.format("%s %s.", _serverName, stopped ? "stopped" : "not stopped (still in use)"));
-                }
-            }
-        } finally {
-            super.stop();
-        }
+        super.stop();
     }
 
     public Object down(Event evt) {
@@ -196,51 +149,19 @@ public abstract class OpenshiftPing extends PING {
         return super.down(evt);
     }
 
-    @Override
-    protected void sendMcastDiscoveryRequest(Message msg) {
-        List<InetSocketAddress> nodes = readAll();
-        if (nodes == null) {
-            return;
-        }
-        if (msg.getSrc() == null) {
-            setSrc(msg);
-        }
-        for (InetSocketAddress node : nodes) {
-            // forward the request to each node
-            timer.execute(new SendDiscoveryRequest(node, msg));
-        }
-    }
-
     public void handlePingRequest(InputStream stream) throws Exception {
-        DataInputStream dataInput = new DataInputStream(stream);
-        Message msg = new Message();
-        msg.readFrom(dataInput);
-        try {
-            sendUp(msg);
-        } catch (Exception e) {
-            log.error("Error processing GET_MBRS_REQ.", e);
-        }
+        throw new UnsupportedOperationException("handlePingRequest() is no longer supported.");
     }
 
-    private void setSrc(Message msg) {
-        try {
-            setSrcMethod.invoke(msg, local_addr);
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        } catch (Exception e) {
-            throw new CompatibilityException("Could not invoke 'setSrc' method.", e);
-        }
-    }
-
-    private void sendUp(Message msg) {
+    private void sendDown(Object obj, Message msg) {
         try {
             if(CompatibilityUtils.isJGroups4()) {
-                sendMethod.invoke(this, msg);
+                sendDownMethod.invoke(obj, msg);
             } else {
-                sendMethod.invoke(this, new Event(1, msg));
+                sendDownMethod.invoke(obj, new Event(1, msg));
             }
         } catch (Exception e) {
-            throw new CompatibilityException("Could not invoke 'up' method.", e);
+            throw new CompatibilityException("Could not invoke 'down' method.", e);
         }
     }
 
@@ -254,61 +175,21 @@ public abstract class OpenshiftPing extends PING {
 
     protected abstract List<InetSocketAddress> doReadAll(String clusterName);
 
-    private final class SendDiscoveryRequest implements Runnable {
-        private final InetSocketAddress node;
-        private final Message msg;
-        private int attempts;
-
-        private SendDiscoveryRequest(InetSocketAddress node, Message msg) {
-            this.node = node;
-            this.msg = msg;
+    @Override
+    protected void sendMcastDiscoveryRequest(Message msg) {
+        final List<InetSocketAddress> hosts = readAll();
+        final PhysicalAddress physical_addr = (PhysicalAddress) down(new Event(Event.GET_PHYSICAL_ADDRESS, local_addr));
+        if (!(physical_addr instanceof IpAddress)) {
+            log.error(String.format("Unable to send PING requests: physical_addr is not an IpAddress."));
+            return;
         }
-
-        @Override
-        public void run() {
-            ++attempts;
-            final String url = String.format("http://%s:%s", node.getHostString(), node.getPort());
-            if (log.isTraceEnabled()) {
-                log.trace(String.format(
-                        "%s opening connection: url [%s], clusterName [%s], connectTimeout [%s], readTimeout [%s]",
-                        getClass().getSimpleName(), url, clusterName, _connectTimeout, _readTimeout));
-            }
-            HttpURLConnection connection = null;
-            try {
-                connection = (HttpURLConnection) new URL(url).openConnection(Proxy.NO_PROXY);
-                connection.addRequestProperty(Server.CLUSTER_NAME, clusterName);
-                if (_connectTimeout < 0 || _readTimeout < 0) {
-                    throw new IllegalArgumentException(String.format(
-                            "Neither connectTimeout [%s] nor readTimeout [%s] can be less than 0 for URLConnection.",
-                            _connectTimeout, _readTimeout));
-                }
-                connection.setConnectTimeout(_connectTimeout);
-                connection.setReadTimeout(_readTimeout);
-                connection.setDoOutput(true);
-                connection.setRequestMethod("POST");
-                DataOutputStream out = new DataOutputStream(connection.getOutputStream());
-                msg.writeTo(out);
-                out.flush();
-                String responseMessage = connection.getResponseMessage();
-                if (log.isTraceEnabled()) {
-                    log.trace(String.format(
-                            "%s received response from server: url [%s], clusterName [%s], response [%s]", getClass()
-                                    .getSimpleName(), url, clusterName, responseMessage));
-                }
-            } catch (Exception e) {
-                log.warn(String.format("Error sending ping request: url [%s], clusterName [%s], attempts[%d]: %s", url,
-                        clusterName, attempts, e.getLocalizedMessage()));
-                if (attempts < _operationAttempts) {
-                    timer.schedule(this, _operationSleep, TimeUnit.MILLISECONDS);
-                }
-            } finally {
-                try {
-                    connection.disconnect();
-                } catch (Exception e) {
-                }
-            }
+        // XXX: is it better to force this to be defined?
+        // assume symmetry
+        final int port = ((IpAddress) physical_addr).getPort();
+        for (InetSocketAddress host: hosts) {
+            msg.dest(new IpAddress(host.getAddress(), port));
+            sendDown(down_prot, msg);
         }
-
     }
 
 }
