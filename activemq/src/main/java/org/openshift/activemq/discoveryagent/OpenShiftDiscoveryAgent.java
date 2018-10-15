@@ -93,6 +93,7 @@ public class OpenShiftDiscoveryAgent implements DiscoveryAgent {
             openshiftPoller.stop();
             openshiftPoller = null;
         }
+        services.clear();
     }
 
     @Override
