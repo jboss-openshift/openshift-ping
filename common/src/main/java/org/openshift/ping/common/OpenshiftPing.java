@@ -180,7 +180,7 @@ public abstract class OpenshiftPing extends PING {
         final List<InetSocketAddress> hosts = readAll();
         final PhysicalAddress physical_addr = (PhysicalAddress) down(new Event(Event.GET_PHYSICAL_ADDRESS, local_addr));
         if (!(physical_addr instanceof IpAddress)) {
-            log.error(String.format("Unable to send PING requests: physical_addr is not an IpAddress."));
+            log.error("Unable to send PING requests: physical_addr is not an IpAddress.");
             return;
         }
         // XXX: is it better to force this to be defined?
