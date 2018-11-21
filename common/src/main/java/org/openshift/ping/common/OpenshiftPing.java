@@ -187,8 +187,10 @@ public abstract class OpenshiftPing extends PING {
         // assume symmetry
         final int port = ((IpAddress) physical_addr).getPort();
         for (InetSocketAddress host: hosts) {
-            msg.dest(new IpAddress(host.getAddress(), port));
-            sendDown(down_prot, msg);
+            // JGroups messages cannot be reused - https://github.com/belaban/workshop/blob/master/slides/admin.adoc#problem-9-reusing-a-message-the-sebastian-problem
+            Message msgToHost = msg.copy();
+            msgToHost.dest(new IpAddress(host.getAddress(), port));
+            sendDown(down_prot, msgToHost);
         }
     }
 
