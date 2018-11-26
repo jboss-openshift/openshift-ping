@@ -32,7 +32,7 @@
 
     <groupId>org.openshift.ping</groupId>
     <artifactId>openshift-ping-parent</artifactId>
-    <version>1.2.2.Final</version>
+    <version>1.2.3.Final</version>
     <packaging>pom</packaging>
 
     <name>OpenShift PING - Parent</name>
