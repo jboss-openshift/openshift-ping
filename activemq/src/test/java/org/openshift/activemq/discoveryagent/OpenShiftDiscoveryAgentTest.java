@@ -15,12 +15,15 @@
  */
 package org.openshift.activemq.discoveryagent;
 
+import java.io.IOException;
+import java.util.HashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.activemq.command.DiscoveryEvent;
 import org.apache.activemq.transport.discovery.DiscoveryListener;
+import org.apache.activemq.util.IntrospectionSupport;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,6 +100,75 @@ public class OpenShiftDiscoveryAgentTest {
       assertTrue("second add", second.await(10, TimeUnit.SECONDS));
 
       assertEquals("add count", 2, addCount.get());
+
+   }
+
+   @Test
+   public void testReconnectRetryConfigExposed() throws Exception {
+
+      final AtomicInteger addCount = new AtomicInteger();
+      final AtomicInteger removeCount = new AtomicInteger();
+
+
+      PeerAddressResolver peerAddressResolver = new PeerAddressResolver() {
+         @Override
+         public String getServiceName() {
+            return "bb";
+         }
+
+         @Override
+         public String[] getPeerIPs() {
+            try {
+               TimeUnit.SECONDS.sleep(0);
+            } catch (InterruptedException e) {
+               e.printStackTrace();
+            }
+            return new String[]{"10.10.10.10"};
+         }
+
+         @Override
+         public int getServicePort() {
+            return 99;
+         }
+      };
+
+      final OpenShiftDiscoveryAgent underTest = new OpenShiftDiscoveryAgent(peerAddressResolver);
+
+
+      underTest.setDiscoveryListener(new DiscoveryListener() {
+         @Override
+         public void onServiceAdd(DiscoveryEvent discoveryEvent) {
+            LOGGER.info("Add: " + discoveryEvent);
+            addCount.getAndIncrement();
+            try {
+               // fail immediately - service not available!
+               underTest.serviceFailed(discoveryEvent);
+            } catch (IOException e) {
+               e.printStackTrace();
+            }
+         }
+
+         @Override
+         public void onServiceRemove(DiscoveryEvent discoveryEvent) {
+            LOGGER.info("Remove: " + discoveryEvent);
+            removeCount.getAndIncrement();
+         }
+      });
+
+      final HashMap<String, String> options = new HashMap<>();
+      options.put("maxReconnectAttempts", "2");
+      options.put("minConnectTime", "50");
+      options.put("initialReconnectDelay", "100");
+      options.put("queryInterval", "1");
+      IntrospectionSupport.setProperties(underTest, options);
+
+      assertTrue("all props applied: " + options, options.isEmpty());
+
+      underTest.start();
+
+      TimeUnit.SECONDS.sleep(2);
+      assertEquals("add count", 2, addCount.get());
+      assertEquals("remove count", 2, addCount.get());
 
    }
 

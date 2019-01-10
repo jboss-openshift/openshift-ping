@@ -147,10 +147,43 @@ public class OpenShiftDiscoveryAgent implements DiscoveryAgent {
         this.transportType = transportType;
     }
 
+
+    public long getMinConnectTime() {
+        return minConnectTime;
+    }
+
+    public void setMinConnectTime(long minConnectTime) {
+        this.minConnectTime = minConnectTime;
+    }
+
+    public long getInitialReconnectDelay() {
+        return initialReconnectDelay;
+    }
+
+    public void setInitialReconnectDelay(long initialReconnectDelay) {
+        this.initialReconnectDelay = initialReconnectDelay;
+    }
+
+    public long getMaxReconnectDelay() {
+        return maxReconnectDelay;
+    }
+
+    public void setMaxReconnectDelay(long maxReconnectDelay) {
+        this.maxReconnectDelay = maxReconnectDelay;
+    }
+
+    public int getMaxReconnectAttempts() {
+        return maxReconnectAttempts;
+    }
+
+    public void setMaxReconnectAttempts(int maxReconnectAttempts) {
+        this.maxReconnectAttempts = maxReconnectAttempts;
+    }
+
     private final class OpenShiftDiscoveryEvent extends DiscoveryEvent {
 
         private int connectFailures;
-        private long reconnectDelay = 1000;
+        private long reconnectDelay = initialReconnectDelay;
         private long connectTime = System.currentTimeMillis();
         private boolean failed;
 
