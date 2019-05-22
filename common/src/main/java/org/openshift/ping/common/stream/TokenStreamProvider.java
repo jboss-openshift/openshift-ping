@@ -8,8 +8,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLConnection;
 import java.security.KeyStore;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.util.Collection;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -70,13 +72,16 @@ public class TokenStreamProvider extends BaseStreamProvider {
                 InputStream pemInputStream = openFile(caCertFile);
                 try {
                     CertificateFactory certFactory = CertificateFactory.getInstance("X509");
-                    X509Certificate cert = (X509Certificate)certFactory.generateCertificate(pemInputStream);
 
                     KeyStore trustStore = KeyStore.getInstance("JKS");
                     trustStore.load(null);
 
-                    String alias = cert.getSubjectX500Principal().getName();
-                    trustStore.setCertificateEntry(alias, cert);
+                    Collection<? extends Certificate> certificates = certFactory.generateCertificates(pemInputStream);
+                    for (Certificate c : certificates) {
+                        X509Certificate certificate = (X509Certificate) c;
+                        String alias = certificate.getSubjectX500Principal().getName();
+                        trustStore.setCertificateEntry(alias, certificate);
+                    }
 
                     TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
                     trustManagerFactory.init(trustStore);
