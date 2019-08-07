@@ -66,7 +66,7 @@ public class TokenStreamProvider extends BaseStreamProvider {
         return connection.getInputStream();
     }
 
-    private TrustManager[] configureCaCert(String caCertFile) throws Exception {
+    static TrustManager[] configureCaCert(String caCertFile) throws Exception {
         if (caCertFile != null) {
             try {
                 InputStream pemInputStream = openFile(caCertFile);
