@@ -15,7 +15,7 @@
    <description>An example application demonstrating use of an Infinispan Cache.</description>
 
    <properties>
-      <version.infinispan>10.0.1.Final</version.infinispan>
+      <version.infinispan>11.0.6.Final</version.infinispan>
    </properties>
 
    <dependencies>
