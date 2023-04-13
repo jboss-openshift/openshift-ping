@@ -50,7 +50,7 @@
         <!-- Impl -->
         <version.oauth>20100527</version.oauth>
         <version.httpserver>1.0.4.Final</version.httpserver>
-        <version.undertow>2.2.19.Final</version.undertow>
+        <version.undertow>2.2.24.Final</version.undertow>
         <version.junit>4.13.1</version.junit>
         <!-- Build -->
         <version.org.apache.ant>1.8.2</version.org.apache.ant>
